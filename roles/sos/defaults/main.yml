@@ -1,0 +1,40 @@
+---
+# -- General configuration
+#
+
+# Clean up remote directory
+# ! Do not clean remote dir implies upload all files on each run
+# tempfile module doesn't exist before Ansible 2.5
+clean: true
+
+# Fetch sosreport on controler
+fetch: true
+
+# Upload sosreport files
+# Add all files from remote dir to support case
+upload: true
+
+# -- Sosreport configuration
+#
+# Local directory to collect sosreport files
+sosreport_local_dir: ~/sosreport
+
+# Remote directory to output sosreport to on the remote host
+sosreport_remote_dir: /tmp/sosreport
+
+# Arguments to the sosreport command
+sosreport_args:
+  - --all-logs
+  - --quiet
+  - --batch
+  - --verify
+
+# -- redhat-support-tool configuration
+#
+# Arguments to the redhat-support-tool command
+redhat_support_tool_args: []
+
+# User and password for redhat-support-tool
+# Place in a vault the following variables:
+#   - vault_redhat_support_tool_user
+#   - vault_redhat_support_tool_password

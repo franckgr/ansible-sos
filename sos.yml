@@ -1,0 +1,7 @@
+- name: OpenShift sosreport
+  hosts: 
+    - nodes
+  become: yes
+
+  roles:
+    - sos

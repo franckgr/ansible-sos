@@ -1,0 +1,102 @@
+---
+
+- name: ensure support tools are installed
+  yum:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - sos
+      - redhat-support-tool
+  tags:
+    - tools
+    - rpms
+
+- name: configure redhat-support-tool
+  template:
+    src: etc/redhat-support-tool.conf.j2
+    dest: /etc/redhat-support-tool.conf
+    owner: root
+    group: root
+    mode: 0600
+  vars:
+    redhat_support_tool_user: "{{ vault_redhat_support_tool_user }}"
+    redhat_support_tool_password: "{{ vault_redhat_support_tool_password | b64encode }}"
+  tags:
+    - tools
+    - config
+
+- name: build temp dir path
+  set_fact:
+    tmp_remote_dir: "{{ sosreport_remote_dir }}/{{ 100000 | random | checksum }}"
+  tags:
+    - create
+
+- name: create directory in {{ sosreport_remote_dir }}
+  file:
+    path: "{{ tmp_remote_dir }}"
+    state: directory
+  tags:
+    - create
+
+- name: create sosreport
+  command: >
+    /sbin/sosreport
+      {% for arg in sosreport_args %}
+        {{ arg }}
+      {% endfor %}
+      {% if sosreport_case is defined %}
+        --case-id={{ sosreport_case }}
+      {% endif %}
+      {% if sosreport_remote_dir is defined %}
+        --tmp-dir={{ tmp_remote_dir }}
+      {% endif %}
+  environment: "{{ sosreport_env | default(omit) }}"
+  tags:
+    - create
+
+- name: find created sosreport files
+  command: ls -1 {{ tmp_remote_dir }}
+  register: sosreport_files
+  tags:
+    - fetch
+
+- name: upload sosreport to case {{ sosreport_case }}
+  command: >
+    /usr/bin/redhat-support-tool addattachment
+      {% for arg in redhat_support_tool_args %}
+        {{ arg }}
+      {% endfor %}
+      {% if sosreport_case is defined %}
+        -c {{ sosreport_case }}
+      {% endif %}
+       -d "Add file {{ item }}" {{ tmp_remote_dir }}/{{ item }}
+  environment: "{{ redhat_support_tool_env | default(omit) }}"
+  with_items: "{{ sosreport_files.stdout_lines }}"
+  register: upload_result
+  until: upload_result.rc == 0
+  retries: 3
+  delay: 2
+  when: upload
+  tags:
+    - upload
+
+- name: fetch files to {{ sosreport_local_dir }} on the controller
+  fetch:
+    src: "{{ tmp_remote_dir }}/{{ item }}"
+    dest: "{{ sosreport_local_dir }}/"
+    flat: yes
+    fail_on_missing: yes
+  with_items: "{{ sosreport_files.stdout_lines }}"
+  when: fetch
+  tags:
+    - fetch
+
+- name: remove {{ sosreport_remote_dir }} directory
+  file:
+    path: "{{ tmp_remote_dir }}"
+    state: absent
+  when: clean
+  tags:
+    - clean
+

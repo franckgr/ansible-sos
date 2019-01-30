@@ -32,7 +32,14 @@
   tags:
     - create
 
-- name: create directory in {{ sosreport_remote_dir }}
+- name: remove directory {{ sosreport_remote_dir }}
+  file:
+    path: "{{ sosreport_remote_dir }}"
+    state: absent
+  tags:
+    - clean
+
+- name: create directory {{ tmp_remote_dir }}
   file:
     path: "{{ tmp_remote_dir }}"
     state: directory
@@ -81,7 +88,7 @@
   tags:
     - upload
 
-- name: fetch files to {{ sosreport_local_dir }} on the controller
+- name: fetch files to {{ sosreport_local_dir }}
   fetch:
     src: "{{ tmp_remote_dir }}/{{ item }}"
     dest: "{{ sosreport_local_dir }}/"
@@ -92,7 +99,7 @@
   tags:
     - fetch
 
-- name: remove {{ sosreport_remote_dir }} directory
+- name: remove {{ tmp_remote_dir }} directory
   file:
     path: "{{ tmp_remote_dir }}"
     state: absent
